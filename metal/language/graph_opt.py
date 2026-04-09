@@ -133,21 +133,37 @@ def _node_key(node):
 
 def cse(kernel_ir):
     """Eliminate common subexpressions."""
+    # Protect carried_var init_regs from being merged.
+    # Multiple carried_vars may have init_regs with the same value (e.g. all 0.0),
+    # but they must remain distinct because tile_lower uses init_reg as the
+    # phi-node identifier for each accumulator inside the loop body.
+    protected = set()
+    _collect_carried_init_regs(kernel_ir.body, protected)
+
     remap = {}
-    _cse_body(kernel_ir.body, remap)
+    _cse_body(kernel_ir.body, remap, protected)
     # Rewrite all register references using remap
     if remap:
         _rewrite_refs(kernel_ir.body, remap)
 
 
-def _cse_body(body, remap):
+def _collect_carried_init_regs(body, protected):
+    """Collect all init_regs from carried_vars in ForLoops."""
+    for stmt in body:
+        if isinstance(stmt, ForLoop):
+            for _name, (init_reg, _loop_reg) in stmt.carried_vars.items():
+                protected.add(init_reg)
+            _collect_carried_init_regs(stmt.body, protected)
+
+
+def _cse_body(body, remap, protected):
     seen = {}  # key -> dst_reg
     to_remove = set()
 
     for i, stmt in enumerate(body):
         if isinstance(stmt, ForLoop):
             # Rewrite ForLoop's own references first
-            _cse_body(stmt.body, remap)
+            _cse_body(stmt.body, remap, protected)
             continue
         if not isinstance(stmt, IRNode):
             continue
@@ -158,6 +174,9 @@ def _cse_body(body, remap):
             stmt.attrs["mask_reg"] = remap.get(stmt.attrs["mask_reg"], stmt.attrs["mask_reg"])
 
         if stmt.op not in _PURE_OPS or stmt.dst < 0:
+            continue
+        # Don't CSE registers used as carried_var init_regs
+        if stmt.dst in protected:
             continue
 
         key = _node_key(stmt)

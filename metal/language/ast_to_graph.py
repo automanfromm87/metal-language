@@ -170,6 +170,8 @@ class _GraphBuilder:
             step_val = step
         elif isinstance(step, ast.Constant):
             step_val = step.value
+        elif isinstance(step, ast.Name) and step.id in self.all_constants:
+            step_val = int(self.all_constants[step.id])
         else:
             step_val = 1
 
