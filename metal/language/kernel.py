@@ -42,10 +42,12 @@ class KernelDef:
     def show_metal(self, **constexpr_vals):
         """Print the generated Metal shader code"""
         from .ast_to_graph import ast_to_graph
+        from .graph_opt import optimize
         from .tile_lower import lower
         from .metal_emit import emit as metal_emit
 
         graph_ir = ast_to_graph(self, constexpr_vals)
+        optimize(graph_ir)
         tile_kernel = lower(graph_ir, (1,), _get_block_size(constexpr_vals))
         code = metal_emit(tile_kernel)
         print(code)
@@ -59,12 +61,24 @@ class KernelDef:
         print(dump)
         return dump
 
+    def show_graph_ir_opt(self, **constexpr_vals):
+        """Print the optimized Graph IR"""
+        from .ast_to_graph import ast_to_graph
+        from .graph_opt import optimize
+        graph_ir = ast_to_graph(self, constexpr_vals)
+        optimize(graph_ir)
+        dump = graph_ir.dump()
+        print(dump)
+        return dump
+
     def show_tile_ir(self, grid=(1,), **constexpr_vals):
         """Print the Tile IR"""
         from .ast_to_graph import ast_to_graph
+        from .graph_opt import optimize
         from .tile_lower import lower
 
         graph_ir = ast_to_graph(self, constexpr_vals)
+        optimize(graph_ir)
         tile_kernel = lower(graph_ir, grid, _get_block_size(constexpr_vals))
         dump = tile_kernel.dump()
         print(dump)
@@ -133,6 +147,8 @@ class _KernelLauncher:
 
         n_runs = _bench_runs if _bench_runs else 1
         graph_ir = ast_to_graph(kd, constexpr_vals)
+        from .graph_opt import optimize
+        optimize(graph_ir)
         tile_kernel = lower(graph_ir, self.grid, _get_block_size(constexpr_vals))
         metal_code = metal_emit(tile_kernel)
         host_code = emit_host(tile_kernel, metal_code, n_runs=n_runs)
