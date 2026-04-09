@@ -1,0 +1,13 @@
+[project]
+name = "metal-language"
+version = "0.2.0"
+description = "Triton-style Python DSL for Metal GPU compute"
+requires-python = ">=3.10"
+dependencies = ["numpy"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["metal"]

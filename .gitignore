@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+node_modules/
+.claude/
+tensorlang/
+llmtrace/
+metal_dsl/
+uv.lock
+*.egg-info/
+dist/
+build/
+.DS_Store
